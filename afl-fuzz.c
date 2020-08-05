@@ -28,6 +28,8 @@
 
 */
 
+
+
 #define AFL_MAIN
 #include "android-ashmem.h"
 #define MESSAGES_TO_STDOUT
@@ -66,6 +68,12 @@
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 #include <sys/file.h>
+
+#include <json-c/json.h>
+#include "socket_wrapper.h"
+
+#define SERVER_CONFIG_json "./server_config.json"
+#define INFO_json "./info.json"
 
 #if defined(__APPLE__) || defined(__FreeBSD__) || defined (__OpenBSD__)
 #  include <sys/sysctl.h>
@@ -7753,12 +7761,102 @@ static void save_cmdline(u32 argc, char** argv) {
 }
 
 
+/*
+config 파일 Json 형식으로 만들어야 하나?
+*/
+int Connect(char * config_file) {
+  int clnt_sock;
+  int serv_port;
+  char serv_ip[20];
+
+  struct sockaddr_in serv_addr;
+
+
+  char *config;
+  int size;
+  FILE * fp;
+  fp = fopen(config_file, "r");
+  if(fp == NULL) {
+    return -1;
+  }
+
+  fseek(fp, 0, SEEK_END);
+  size = ftell(fp);
+  fseek(fp, 0, SEEK_SET);
+  
+  config = (char*)malloc(size + 1);
+  memset(config, 0, sizeof(config));
+  
+  fread(config, size, 1, fp);
+  fclose(fp);
+
+  //server ip 와 port number 파싱.
+  memset(serv_ip, 0, sizeof(serv_ip));
+  json_object * jobj = json_tokener_parse(config);
+
+  enum json_type type;
+  json_object_object_foreach(jobj, key, val) {
+      type = json_object_get_type(val);
+      if(strstr(key, "ip") && type == json_type_string) {
+        strcpy(serv_ip, json_object_get_string(val));
+      }
+      else if(strstr(key, "port") && type == json_type_int) {
+        serv_port = json_object_get_int(val);
+      }
+  }
+
+  printf("parsing done. %s:%d\n", serv_ip, serv_port);
+  clnt_sock = socket(PF_INET, SOCK_STREAM, 0);
+
+  memset(&serv_addr, 0, sizeof(serv_addr));
+  serv_addr.sin_family = AF_INET;
+  serv_addr.sin_addr.s_addr = inet_addr(serv_ip);
+  serv_addr.sin_port = htons(serv_port); 
+
+  if(connect(clnt_sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) == -1)
+    return -1;
+    
+  return clnt_sock;
+}
+
+int send_info_to(int serv_sock) {
+  json_object * jobj = json_object_new_object();
+
+  //json object에 information 넣고..
+  //runtime, cycles done, total paths, uniq crashes, uniq hangs
+  int runtime, cycles_done, total_paths, uniq_crashes, uniq_hangs;
+  runtime = (int)((get_cur_time() - start_time)/1000L);
+  cycles_done = queue_cycle ? (queue_cycle - 1) : 0;
+  total_paths = queued_paths;
+  uniq_crashes = unique_crashes;
+  uniq_hangs = unique_hangs;
+
+  json_object_object_add(jobj, "runtime", json_object_new_int(runtime));
+  json_object_object_add(jobj, "cycles done", json_object_new_int(cycles_done));
+  json_object_object_add(jobj, "total paths", json_object_new_int(total_paths));
+  json_object_object_add(jobj, "uniq crashes", json_object_new_int(uniq_crashes));
+  json_object_object_add(jobj, "uniq hangs", json_object_new_int(uniq_hangs));
+  
+  //json 형식 파일로 저장
+  FILE * fp;
+  fp = fopen(INFO_json, "w");
+  if(fp == NULL) {
+    return -1;
+  }
+  fprintf(fp, "%s", json_object_to_json_string(jobj));
+
+  fclose(fp);
+
+  //to_server_socket으로 파일 보내기.
+  return send_file(serv_sock, INFO_json);
+}
+
+
 #ifndef AFL_LIB
 
 /* Main entry point */
 
 int main(int argc, char** argv) {
-
   s32 opt;
   u64 prev_queued = 0;
   u32 sync_interval_cnt = 0, seek_to;
@@ -8058,6 +8156,12 @@ int main(int argc, char** argv) {
     if (stop_soon) goto stop_fuzzing;
   }
 
+  int serv_sock;
+  if((serv_sock = Connect(SERVER_CONFIG_json)) == -1) {
+    printf("Connect() error\n");
+    goto stop_fuzzing;
+  }
+  puts("Connected well.");
   while (1) {
 
     u8 skipped_fuzz;
@@ -8078,7 +8182,10 @@ int main(int argc, char** argv) {
       }
 
       show_stats();
-
+      if(send_info_to(serv_sock) == -1) {
+        goto stop_fuzzing;
+      }
+      
       if (not_on_tty) {
         ACTF("Entering queue cycle %llu.", queue_cycle);
         fflush(stdout);
