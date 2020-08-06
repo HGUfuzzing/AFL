@@ -7844,7 +7844,7 @@ int send_info_to(int serv_sock) {
     return -1;
   }
   fprintf(fp, "%s", json_object_to_json_string(jobj));
-
+  json_object_put(jobj);
   fclose(fp);
 
   //to_server_socket으로 파일 보내기.
@@ -8157,10 +8157,13 @@ int main(int argc, char** argv) {
   }
 
   int serv_sock;
+  unsigned long long last_send_time = get_cur_time();
   if((serv_sock = Connect(SERVER_CONFIG_json)) == -1) {
     printf("Connect() error\n");
     goto stop_fuzzing;
   }
+
+
   puts("Connected well.");
   while (1) {
 
@@ -8182,8 +8185,11 @@ int main(int argc, char** argv) {
       }
 
       show_stats();
-      if(send_info_to(serv_sock) == -1) {
-        goto stop_fuzzing;
+      if(get_cur_time() - last_send_time >= 1000) {
+        if(send_info_to(serv_sock) == -1) {
+          goto stop_fuzzing;
+        }
+        last_send_time = get_cur_time();
       }
       
       if (not_on_tty) {
