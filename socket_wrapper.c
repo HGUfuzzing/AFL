@@ -126,7 +126,9 @@ recv_file(int socket, const char * filename) {
     int read_bytes = 0, tmp = 0;
     int file_size;
     
-    recv(socket, buf, sizeof(buf), 0);
+    int ret = recv(socket, buf, sizeof(buf), 0);
+    if(ret == 0 || ret == -1)
+        return -1;
     file_size = atoi(buf);
 
     while(read_bytes < file_size) {
