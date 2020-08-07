@@ -1,6 +1,37 @@
 #include "socket_wrapper.h"
 #include <json-c/json.h>
 
+void json_object_print(json_object * jobj, int dep) {
+    printf("{\n");    
+    
+    int val_type;
+    json_object_object_foreach(jobj, key, val) {
+        for(int i = 0; i < dep; i++)
+                    printf("\t");
+        val_type = json_object_get_type(val);
+        switch(val_type) {
+            case json_type_object:
+                printf("<%s> : ", key);
+                json_object_print(val, dep + 1);
+                break;
+            case json_type_int:
+                printf("%s : %d\n", key, json_object_get_int(val));
+                break;
+            case json_type_string:
+                printf("%s : %s\n", key, json_object_get_string(val));
+                break;
+            case json_type_double:
+                printf("%s : %.2lf\n", key, json_object_get_double(val));
+                break;
+        }
+    }
+    for(int i = 0; i < dep - 1; i++)
+        printf("\t");
+    printf("}\n");
+}
+
+
+
 int main(int argc, char * argv[]) {
     int listen_fd, conn_fd;
 
@@ -73,8 +104,9 @@ int main(int argc, char * argv[]) {
             
 
             json_object * jobj = json_tokener_parse(buf);
+            printf("heap address : %p\n", jobj);
             puts("---------------------current stats---------------------");
-            printf("%s\n", json_object_to_json_string(jobj));
+            json_object_print(jobj, 1);
             puts("-------------------------------------------------------\n\n");
 
 
