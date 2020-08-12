@@ -63,59 +63,57 @@ int main(int argc, char * argv[]) {
         struct timeval timeout;
         int result;
 
-        while(1) {
-            FD_ZERO(&fd_status);
-            FD_SET(conn_fd, &fd_status);
-            timeout.tv_sec = 3;
-            timeout.tv_usec = 0;
-            result = select(conn_fd + 1, &fd_status, 0, 0, &timeout);
+        FD_ZERO(&fd_status);
+        FD_SET(conn_fd, &fd_status);
+        timeout.tv_sec = 3;
+        timeout.tv_usec = 0;
+        result = select(conn_fd + 1, &fd_status, 0, 0, &timeout);
 
-            if(result == -1 || result == 0) {
-                error_handling("error!");
-                //break;
-            }
-            if((recv_file(conn_fd, "./recv.json")) == -1) {
-                puts("Fuzzer might be dead!");
-                close(conn_fd);
-                break;
-            };
-
-            // JSON parsing
-            FILE * fp = fopen("./recv.json", "r");
-            if(fp == NULL) {
-                puts("fopen() error");
-                exit(1);
-            }
-            int size;
-            char * buf;
-
-            fseek(fp, 0, SEEK_END);
-            size = ftell(fp);
-            fseek(fp, 0, SEEK_SET);
-
-            buf = (char *) malloc(size + 1);
-            if(buf == NULL) {
-                puts("malloc() error");
-                exit(1);
-            }
-            memset(buf, 0, sizeof(buf));
-            
-            fread(buf, size, 1, fp);
-            
-
-            json_object * jobj = json_tokener_parse(buf);
-            printf("heap address : %p\n", jobj);
-            puts("---------------------current stats---------------------");
-            json_object_print(jobj, 1);
-            puts("-------------------------------------------------------\n\n");
-
-
-            //free
-            json_object_put(jobj);
-            free(buf);
-            fclose(fp);
-            
+        if(result == -1 || result == 0) {
+            error_handling("error!");
+            //break;
         }
+        if((recv_file(conn_fd, "./recv.json")) == -1) {
+            puts("Fuzzer might be dead!");
+            close(conn_fd);
+            break;
+        };
+
+        // JSON parsing
+        FILE * fp = fopen("./recv.json", "r");
+        if(fp == NULL) {
+            puts("fopen() error");
+            exit(1);
+        }
+        int size;
+        char * buf;
+
+        fseek(fp, 0, SEEK_END);
+        size = ftell(fp);
+        fseek(fp, 0, SEEK_SET);
+
+        buf = (char *) malloc(size + 1);
+        if(buf == NULL) {
+            puts("malloc() error");
+            exit(1);
+        }
+        memset(buf, 0, sizeof(buf));
+        
+        fread(buf, size, 1, fp);
+        
+
+        json_object * jobj = json_tokener_parse(buf);
+        printf("heap address : %p\n", jobj);
+        puts("---------------------current stats---------------------");
+        json_object_print(jobj, 1);
+        puts("-------------------------------------------------------\n\n");
+
+
+        //free
+        json_object_put(jobj);
+        free(buf);
+        fclose(fp);
+            
     }
 
 
