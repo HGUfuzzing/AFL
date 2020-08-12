@@ -7761,9 +7761,7 @@ static void save_cmdline(u32 argc, char** argv) {
 }
 
 
-/*
-config 파일 Json 형식으로 만들어야 하나?
-*/
+
 int Connect(char * config_file) {
   int clnt_sock;
   int serv_port;
@@ -7804,7 +7802,8 @@ int Connect(char * config_file) {
         serv_port = json_object_get_int(val);
       }
   }
-
+  json_object_put(jobj);
+  
   printf("parsing done. %s:%d\n", serv_ip, serv_port);
   clnt_sock = socket(PF_INET, SOCK_STREAM, 0);
 
@@ -7844,9 +7843,10 @@ int send_info_to(int serv_sock) {
     return -1;
   }
   fprintf(fp, "%s", json_object_to_json_string(jobj));
+
   json_object_put(jobj);
   fclose(fp);
-
+  
   //to_server_socket으로 파일 보내기.
   return send_file(serv_sock, INFO_json);
 }
@@ -8156,15 +8156,8 @@ int main(int argc, char** argv) {
     if (stop_soon) goto stop_fuzzing;
   }
 
-  int serv_sock;
   unsigned long long last_send_time = get_cur_time();
-  if((serv_sock = Connect(SERVER_CONFIG_json)) == -1) {
-    printf("Connect() error\n");
-    goto stop_fuzzing;
-  }
 
-
-  puts("Connected well.");
   while (1) {
 
     u8 skipped_fuzz;
@@ -8185,12 +8178,24 @@ int main(int argc, char** argv) {
       }
 
       show_stats();
+
+    //sending to server
+      int serv_sock;
       if(get_cur_time() - last_send_time >= 1000) {
+        if((serv_sock = Connect(SERVER_CONFIG_json)) == -1) {
+          printf("Connect() error\n");
+          goto stop_fuzzing;
+        }
+        puts("Connected well.");
         if(send_info_to(serv_sock) == -1) {
           goto stop_fuzzing;
         }
+        close(serv_sock);
         last_send_time = get_cur_time();
       }
+
+
+
       
       if (not_on_tty) {
         ACTF("Entering queue cycle %llu.", queue_cycle);
