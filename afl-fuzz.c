@@ -7823,19 +7823,22 @@ int send_info_to(int serv_sock) {
 
   //json object에 information 넣고..
   //runtime, cycles done, total paths, uniq crashes, uniq hangs
-  int runtime, cycles_done, total_paths, uniq_crashes, uniq_hangs;
+  int runtime, cycles_done, total_paths, uniq_crashes, uniq_hangs, pid;
+  
   runtime = (int)((get_cur_time() - start_time)/1000L);
   cycles_done = queue_cycle ? (queue_cycle - 1) : 0;
   total_paths = queued_paths;
   uniq_crashes = unique_crashes;
   uniq_hangs = unique_hangs;
-
+  pid = getpid();
+  
   json_object_object_add(jobj, "runtime", json_object_new_int(runtime));
   json_object_object_add(jobj, "cycles done", json_object_new_int(cycles_done));
   json_object_object_add(jobj, "total paths", json_object_new_int(total_paths));
   json_object_object_add(jobj, "uniq crashes", json_object_new_int(uniq_crashes));
   json_object_object_add(jobj, "uniq hangs", json_object_new_int(uniq_hangs));
-  
+  json_object_object_add(jobj, "pid", json_object_new_int(pid));
+
   //json 형식 파일로 저장
   FILE * fp;
   fp = fopen(INFO_json, "w");
