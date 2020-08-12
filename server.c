@@ -35,8 +35,8 @@ void json_object_print(json_object * jobj, int dep) {
 int main(int argc, char * argv[]) {
     int listen_fd, conn_fd;
 
-    struct sockaddr_in serv_addr;
-    
+    struct sockaddr_in serv_addr, clnt_addr;
+    socklen_t clnt_len;
     if(argc != 2) {
         printf("Usage : %s <Port>\n", argv[0]);
         exit(1);
@@ -55,8 +55,10 @@ int main(int argc, char * argv[]) {
     printf("listening to port %s ..\n", argv[1]);
 
     while(1) {
+        clnt_len = sizeof(clnt_addr);
+
         //클라이언트 접속 요청 수락
-        conn_fd = Accept(listen_fd, NULL, NULL);
+        conn_fd = Accept(listen_fd, (struct sockaddr *)&clnt_addr, &clnt_len);
         printf("Fuzzer's connection is accepted!\n");
 
         fd_set fd_status;
@@ -103,6 +105,7 @@ int main(int argc, char * argv[]) {
         
 
         json_object * jobj = json_tokener_parse(buf);
+        json_object_object_add(jobj, "ip", json_object_new_string(inet_ntoa(clnt_addr.sin_addr)));
         printf("heap address : %p\n", jobj);
         puts("---------------------current stats---------------------");
         json_object_print(jobj, 1);
