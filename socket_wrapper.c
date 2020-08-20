@@ -96,7 +96,7 @@ send_file(int socket, const char * filename) {
     fseek(fp, 0, SEEK_SET);
     snprintf(buf, sizeof(buf), "%d", file_size);    
 
-    send_bytes = send(socket, buf, sizeof(buf), 0);  //input file 사이즈 보내기
+    send_bytes = send(socket, buf, 16, 0);  //input file 사이즈 보내기
 
     buffer_num = 0;
     total_send_bytes = 0;
@@ -126,7 +126,7 @@ recv_file(int socket, const char * filename) {
     int read_bytes = 0, tmp = 0;
     int file_size;
     
-    int ret = recv(socket, buf, sizeof(buf), 0);
+    int ret = recv(socket, buf, 16, 0);
     if(ret == 0 || ret == -1)
         return -1;
     file_size = atoi(buf);
