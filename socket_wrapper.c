@@ -94,7 +94,7 @@ send_file(int socket, const char * filename) {
     file_size = ftell(fp);
     total_buffer_num = (file_size - 1) / sizeof(buf) + 1;
     fseek(fp, 0, SEEK_SET);
-    snprintf(buf, sizeof(buf), "%d", file_size);    
+    snprintf(buf, sizeof(buf), "%016d", file_size);    
 
     send_bytes = send(socket, buf, 16, 0);  //input file 사이즈 보내기
 
