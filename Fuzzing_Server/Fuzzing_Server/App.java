@@ -55,7 +55,7 @@ public class App {
 		
 		//open server socket
 		try {
-			s_socket = new ServerSocket(10002);
+			s_socket = new ServerSocket(10000);
 
 		} catch (FileNotFoundException e1) {
 			e1.printStackTrace();
@@ -77,7 +77,8 @@ public class App {
 				System.out.println("Waiting for client...");
 				
 				c_socket = s_socket.accept();
-				System.out.println("Client is connected! : " + c_socket.getInetAddress());
+				clnt_address = c_socket.getInetAddress().toString();
+				System.out.println("Client is connected! : " + clnt_address);
 				
 				//open json_recv file & ready for future input data from fuzz client
 				out = new PrintWriter("./json_recv.txt");
@@ -109,11 +110,12 @@ public class App {
 				
 				/* Sending info to firebase */
 				//key
-				String fuzzerKey = Integer.toString(pid);
-				clnt_address = c_socket.getInetAddress().toString().replace("/", "");
+				clnt_address = clnt_address.replace("/", "-");
+				clnt_address = clnt_address.replace(".", " ");
+				String fuzzerKey = Integer.toString(pid) + clnt_address;
 
 				Map<String, Object> clients = new HashMap<String, Object>();
-				clients.put(fuzzerKey, new FuzzingInfo(clnt_address, last_update, runtime, cycles_done, total_paths,
+				clients.put(fuzzerKey, new FuzzingInfo(last_update, runtime, cycles_done, total_paths,
 						unique_crashes, unique_hangs));
 				usersRef.updateChildrenAsync(clients);
 
