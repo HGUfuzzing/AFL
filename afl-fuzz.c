@@ -7791,7 +7791,7 @@ int Connect(char * config_file) {
   //server ip 와 port number 파싱.
   memset(serv_ip, 0, sizeof(serv_ip));
   json_object * jobj = json_tokener_parse(config);
-
+  free(config);
   enum json_type type;
   json_object_object_foreach(jobj, key, val) {
       type = json_object_get_type(val);
@@ -7814,7 +7814,7 @@ int Connect(char * config_file) {
 
   if(connect(clnt_sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) == -1)
     return -1;
-    
+  
   return clnt_sock;
 }
 
@@ -7846,7 +7846,7 @@ int send_info_to(int serv_sock) {
     return -1;
   }
   fprintf(fp, "%s", json_object_to_json_string(jobj));
-
+  printf("heap address : %p\n");
   json_object_put(jobj);
   fclose(fp);
   
@@ -8189,7 +8189,7 @@ int main(int argc, char** argv) {
           printf("Connect() error\n");
           goto stop_fuzzing;
         }
-        puts("Connected well.");
+        printf("Connected well. fd = %d\n", serv_sock);
         if(send_info_to(serv_sock) == -1) {
           goto stop_fuzzing;
         }
