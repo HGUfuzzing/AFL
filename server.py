@@ -1,31 +1,33 @@
 #server.py
-import socket
-HOST = '127.0.0.1'
-PORT = 9999        
+from socket import *
+import sys
 
-c = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-c.bind((HOST, PORT))
-c.listen()
-s, addr = c.accept()
+if len(sys.argv) != 2 :
+    print('Usage :', sys.argv[0], '<Port>')
+    sys.exit()
 
-def send_file(s, filename) {
-    print(filename, "is sending.")
-    s.sendall('ok'.encode())
-    with open(filename, 'rb') as f:
-        data = f.read()
-    s.sendall(('%16d' % len(data)).encode())
-    print('length : %16d' % len(data))
-    s.sendall(data)
-}
+PORT = int(sys.argv[1])
 
+serverSock = socket(AF_INET, SOCK_STREAM)
+serverSock.bind(('', PORT))
+serverSock.listen()
+
+def recv_file(s, filename) :
+    length = int(s.recv(16).decode())
+    recved_data = ''
+    recved_len = length
+    while recved_len > 0 :
+        recved_data += s.recv(recved_len).decode('utf-8')
+        recved_len = length - len(recved_data)
+    
+    with open(filename, 'w') as f:
+        f.write(recved_data)
+    print(length, 'length of a file was sended.')
 
 while True:
-       data = (s.recv(1024)).decode()
-        x, filename, x = data.split('\n', 2)
-        print(filename, "is sending.")
-        s.sendall('ok'.encode())
-        with open(filename, 'rb') as f:
-            data = f.read()
-        s.sendall(('%16d' % len(data)).encode())
-        print('length : %16d' % len(data))
-        s.sendall(data)
+        connectionSock, addr = serverSock.accept()
+        print(addr, 'is connected.')
+        recv_file(connectionSock, 'recv.json') 
+        connectionSock.close()
+serverSock.close()
+
