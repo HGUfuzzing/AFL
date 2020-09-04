@@ -7760,16 +7760,10 @@ static void save_cmdline(u32 argc, char** argv) {
 
 }
 
-
-
-int Connect(char * config_file) {
-  int clnt_sock;
-  int serv_port;
-  char serv_ip[20];
-
-  struct sockaddr_in serv_addr;
-
-
+int check_cnt;
+int serv_port;
+char serv_ip[20];
+int get_ip_port(char * config_file) {
   char *config;
   int size;
   FILE * fp;
@@ -7793,18 +7787,32 @@ int Connect(char * config_file) {
   json_object * jobj = json_tokener_parse(config);
   free(config);
   enum json_type type;
+
   json_object_object_foreach(jobj, key, val) {
       type = json_object_get_type(val);
       if(strstr(key, "ip") && type == json_type_string) {
         strcpy(serv_ip, json_object_get_string(val));
+        printf("ip : %s\n", serv_ip);
       }
       else if(strstr(key, "port") && type == json_type_int) {
         serv_port = json_object_get_int(val);
+        printf("port : %d\n", serv_port);
       }
   }
   json_object_put(jobj);
-  
   printf("parsing done. %s:%d\n", serv_ip, serv_port);
+  return 0;
+}
+
+int Connect() {
+  check_cnt = 0;
+  printf("check_cnt = %d\n", check_cnt++);
+  int clnt_sock;
+  
+
+  struct sockaddr_in serv_addr;
+  
+  
   clnt_sock = socket(PF_INET, SOCK_STREAM, 0);
 
   memset(&serv_addr, 0, sizeof(serv_addr));
@@ -7831,6 +7839,7 @@ int send_info_to(int serv_sock) {
   uniq_crashes = unique_crashes;
   uniq_hangs = unique_hangs;
   pid = getpid();
+  printf("check_cnt = %d\n", check_cnt++);
   
   json_object_object_add(jobj, "runtime", json_object_new_int(runtime));
   json_object_object_add(jobj, "cycles done", json_object_new_int(cycles_done));
@@ -7838,6 +7847,7 @@ int send_info_to(int serv_sock) {
   json_object_object_add(jobj, "uniq crashes", json_object_new_int(uniq_crashes));
   json_object_object_add(jobj, "uniq hangs", json_object_new_int(uniq_hangs));
   json_object_object_add(jobj, "pid", json_object_new_int(pid));
+  printf("check_cnt = %d\n", check_cnt++);
 
   //json 형식 파일로 저장
   FILE * fp;
@@ -7849,7 +7859,8 @@ int send_info_to(int serv_sock) {
   printf("heap address : %p\n");
   json_object_put(jobj);
   fclose(fp);
-  
+  printf("check_cnt = %d\n", check_cnt++);
+
   //to_server_socket으로 파일 보내기.
   return send_file(serv_sock, INFO_json);
 }
@@ -8161,6 +8172,11 @@ int main(int argc, char** argv) {
 
   unsigned long long last_send_time = get_cur_time();
 
+
+  if(get_ip_port(SERVER_CONFIG_json) == -1) {
+    printf("error to get ip-port from server config file.\n");
+    goto stop_fuzzing;
+  }
   while (1) {
 
     u8 skipped_fuzz;
@@ -8185,7 +8201,8 @@ int main(int argc, char** argv) {
     //sending to server
       int serv_sock;
       if(get_cur_time() - last_send_time >= 1000) {
-        if((serv_sock = Connect(SERVER_CONFIG_json)) == -1) {
+        printf("\n\n\n\n\n\n\n");
+        if((serv_sock = Connect()) == -1) {
           printf("Connect() error\n");
           goto stop_fuzzing;
         }
